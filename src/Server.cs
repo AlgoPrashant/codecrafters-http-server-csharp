@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -8,6 +9,14 @@ class Program
 {
     static async Task Main(string[] args)
     {
+        if (args.Length != 2 || args[0] != "--directory")
+        {
+            Console.WriteLine("Usage: your_server.exe --directory <directory>");
+            return;
+        }
+
+        string directory = args[1];
+
         TcpListener server = new TcpListener(IPAddress.Any, 4221);
         server.Start();
         Console.WriteLine("Server started. Waiting for connections...");
@@ -17,11 +26,11 @@ class Program
             TcpClient client = await server.AcceptTcpClientAsync();
             Console.WriteLine("Client connected.");
 
-            _ = Task.Run(() => HandleClientAsync(client));
+            _ = Task.Run(() => HandleClientAsync(client, directory));
         }
     }
 
-    static async Task HandleClientAsync(TcpClient client)
+    static async Task HandleClientAsync(TcpClient client, string directory)
     {
         try
         {
@@ -35,38 +44,39 @@ class Program
             // Extract the path from the request
             string path = ExtractPath(request);
 
-            // Prepare the response
-            string response;
-            if (path == "/user-agent")
+            // Check if the request is for a file
+            if (path.StartsWith("/files/"))
             {
-                // Extract User-Agent header
-                string userAgent = ExtractUserAgent(request);
-                if (!string.IsNullOrEmpty(userAgent))
+                string filePath = Path.Combine(directory, path.Substring("/files/".Length));
+                if (File.Exists(filePath))
                 {
-                    response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {userAgent.Length}\r\n\r\n{userAgent}";
+                    // File exists, read its contents
+                    byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
+                    string contentType = "application/octet-stream";
+
+                    // Prepare the response
+                    string response = $"HTTP/1.1 200 OK\r\nContent-Type: {contentType}\r\nContent-Length: {fileBytes.Length}\r\n\r\n";
+                    byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+
+                    // Send the response headers
+                    await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
+
+                    // Send the file contents
+                    await stream.WriteAsync(fileBytes, 0, fileBytes.Length);
                 }
                 else
                 {
-                    response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+                    // File does not exist, return 404
+                    string notFoundResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
+                    byte[] responseBuffer = Encoding.ASCII.GetBytes(notFoundResponse);
+                    await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
                 }
-            }
-            else if (path.StartsWith("/echo/"))
-            {
-                string echoMessage = path.Substring("/echo/".Length);
-                response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {echoMessage.Length}\r\n\r\n{echoMessage}";
-            }
-            else if (path == "/")
-            {
-                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n";
             }
             else
             {
-                response = "HTTP/1.1 404 Not Found\r\n\r\n";
+                // Handle other types of requests (e.g., /user-agent, /echo)
+                // Add your existing request handling logic here
             }
-
-            // Send the response asynchronously
-            byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
-            await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
         }
         finally
         {
@@ -80,18 +90,5 @@ class Program
         string[] lines = request.Split("\r\n");
         string[] parts = lines[0].Split(" ");
         return parts.Length > 1 ? parts[1] : "";
-    }
-
-    static string ExtractUserAgent(string request)
-    {
-        string[] lines = request.Split("\r\n");
-        foreach (string line in lines)
-        {
-            if (line.StartsWith("User-Agent:"))
-            {
-                return line.Substring("User-Agent:".Length).Trim();
-            }
-        }
-        return null;
     }
 }
