@@ -2,10 +2,11 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         TcpListener server = new TcpListener(IPAddress.Any, 4221);
         server.Start();
@@ -13,14 +14,22 @@ class Program
 
         while (true)
         {
-            TcpClient client = server.AcceptTcpClient();
+            TcpClient client = await server.AcceptTcpClientAsync();
             Console.WriteLine("Client connected.");
 
+            _ = Task.Run(() => HandleClientAsync(client));
+        }
+    }
+
+    static async Task HandleClientAsync(TcpClient client)
+    {
+        try
+        {
             NetworkStream stream = client.GetStream();
 
-            // Read the request
+            // Read the request asynchronously
             byte[] buffer = new byte[1024];
-            int bytesRead = stream.Read(buffer, 0, buffer.Length);
+            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
             string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
 
             // Extract the path from the request
@@ -55,13 +64,14 @@ class Program
                 response = "HTTP/1.1 404 Not Found\r\n\r\n";
             }
 
-            // Send the response
+            // Send the response asynchronously
             byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
-            stream.Write(responseBuffer, 0, responseBuffer.Length);
-
-            stream.Close();
+            await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
+        }
+        finally
+        {
             client.Close();
-            Console.WriteLine("Response sent. Client disconnected.");
+            Console.WriteLine("Client disconnected.");
         }
     }
 
