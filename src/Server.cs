@@ -8,27 +8,28 @@ using System.Threading.Tasks;
 class Program
 {
     static async Task Main(string[] args)
+{
+    if (args.Length != 2 || args[0] != "--directory")
     {
-        if (args.Length != 2 || args[0] != "--directory")
-        {
-            Console.WriteLine("Usage: your_server.exe --directory <directory>");
-            return;
-        }
-
-        string directory = args[1];
-
-        TcpListener server = new TcpListener(IPAddress.Any, 4221);
-        server.Start();
-        Console.WriteLine("Server started. Waiting for connections...");
-
-        while (true)
-        {
-            TcpClient client = await server.AcceptTcpClientAsync();
-            Console.WriteLine("Client connected.");
-
-            _ = Task.Run(() => HandleClientAsync(client, directory));
-        }
+        Console.WriteLine("Usage: your_server.exe --directory <directory>");
+        return;
     }
+
+    string directory = args[1];
+
+    TcpListener server = new TcpListener(IPAddress.Any, 4221);
+    server.Start();
+    Console.WriteLine("Server started. Waiting for connections...");
+
+    while (true)
+    {
+        TcpClient client = await server.AcceptTcpClientAsync();
+        Console.WriteLine("Client connected.");
+
+        _ = Task.Run(() => HandleClientAsync(client, directory));
+    }
+}
+
 
     static async Task HandleClientAsync(TcpClient client, string directory)
     {
