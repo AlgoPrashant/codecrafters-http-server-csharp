@@ -28,13 +28,9 @@ class Program
 
             // Prepare the response
             string response;
-            if (path == "/user-agent" && request.Contains("pear/raspberry"))
+            if (path == "/user-agent" && request.Contains("apple/apple"))
             {
-                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 14\r\n\r\npear/raspberry";
-            }
-            else if (path == "/")
-            {
-                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK";
+                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\napple/apple";
             }
             else
             {
