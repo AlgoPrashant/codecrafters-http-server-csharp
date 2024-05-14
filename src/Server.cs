@@ -2,7 +2,6 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.RegularExpressions;
 
 class Program
 {
@@ -27,40 +26,20 @@ class Program
             // Extract the path from the request
             string path = ExtractPath(request);
 
-            // Check if it's an echo request
-            if (path.StartsWith("/echo/"))
+            // Prepare the response
+            string response;
+            if (path == "/")
             {
-                // Extract the string to echo
-                string echoString = path.Substring("/echo/".Length);
-
-                // Prepare the response
-                string response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {echoString.Length}\r\n\r\n{echoString}";
-
-                // Send the response
-                byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
-                stream.Write(responseBuffer, 0, responseBuffer.Length);
-            }
-            else if (path == "/user-agent")
-            {
-                // Extract the User-Agent header value from the request
-                string userAgent = ExtractUserAgent(request);
-
-                // Prepare the response
-                string response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {userAgent.Length}\r\n\r\n{userAgent}";
-
-                // Send the response
-                byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
-                stream.Write(responseBuffer, 0, responseBuffer.Length);
+                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK";
             }
             else
             {
-                // Prepare the response for unknown paths
-                string response = "HTTP/1.1 404 Not Found\r\n\r\n";
-
-                // Send the response
-                byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
-                stream.Write(responseBuffer, 0, responseBuffer.Length);
+                response = "HTTP/1.1 404 Not Found\r\n\r\n";
             }
+
+            // Send the response
+            byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+            stream.Write(responseBuffer, 0, responseBuffer.Length);
 
             stream.Close();
             client.Close();
@@ -73,18 +52,5 @@ class Program
         string[] lines = request.Split("\r\n");
         string[] parts = lines[0].Split(" ");
         return parts.Length > 1 ? parts[1] : "";
-    }
-
-    static string ExtractUserAgent(string request)
-    {
-        string[] lines = request.Split("\r\n");
-        foreach (string line in lines)
-        {
-            if (line.StartsWith("User-Agent:"))
-            {
-                return line.Substring("User-Agent:".Length).Trim();
-            }
-        }
-        return "Unknown";
     }
 }
