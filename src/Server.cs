@@ -25,7 +25,7 @@ class Program
         else
         {
             // Use the default "wwwroot" directory if no argument is provided
-            directory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"); 
+            directory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
 
             // Create the directory if it doesn't exist
             if (!Directory.Exists(directory))
@@ -50,7 +50,7 @@ class Program
             Console.WriteLine("Client connected.");
 
             // Handle each client connection in a separate task
-            _ = Task.Run(() => HandleClientAsync(client, directory)); 
+            _ = Task.Run(() => HandleClientAsync(client, directory));
         }
     }
 
