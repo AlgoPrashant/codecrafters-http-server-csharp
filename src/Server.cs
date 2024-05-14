@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 
 class Program
 {
+    static readonly object _lock = new object();
+
     static async Task Main(string[] args)
     {
         string directory = "";
@@ -50,7 +52,7 @@ class Program
             Console.WriteLine("Client connected.");
 
             // Handle each client connection in a separate task
-            _ = Task.Run(() => HandleClientAsync(client, directory)); 
+            Task.Run(() => HandleClientAsync(client, directory)); 
         }
     }
 
@@ -58,45 +60,48 @@ class Program
     {
         try
         {
-            using (NetworkStream stream = client.GetStream())
+            lock (_lock)
             {
-                // Read the HTTP request from the client
-                byte[] buffer = new byte[4096];
-                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-
-                string path = ExtractPath(request);
-
-                if (path.StartsWith("/files/"))
+                using (NetworkStream stream = client.GetStream())
                 {
-                    // Construct the full file path based on the request
-                    string filePath = Path.Combine(directory, path.Substring("/files/".Length));
+                    // Read the HTTP request from the client
+                    byte[] buffer = new byte[4096];
+                    int bytesRead = stream.Read(buffer, 0, buffer.Length);
+                    string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
 
-                    if (File.Exists(filePath))
+                    string path = ExtractPath(request);
+
+                    if (path.StartsWith("/files/"))
                     {
-                        // If the file exists, open it and send the contents
-                        using (FileStream fileStream = File.OpenRead(filePath))
-                        {
-                            // Prepare the HTTP response headers
-                            string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileStream.Length}\r\n\r\n";
-                            byte[] headerBytes = Encoding.ASCII.GetBytes(headers);
-                            await stream.WriteAsync(headerBytes, 0, headerBytes.Length);
+                        // Construct the full file path based on the request
+                        string filePath = Path.Combine(directory, path.Substring("/files/".Length));
 
-                            // Stream the file contents to the client
-                            await fileStream.CopyToAsync(stream);
+                        if (File.Exists(filePath))
+                        {
+                            // If the file exists, open it and send the contents
+                            using (FileStream fileStream = File.OpenRead(filePath))
+                            {
+                                // Prepare the HTTP response headers
+                                string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileStream.Length}\r\n\r\n";
+                                byte[] headerBytes = Encoding.ASCII.GetBytes(headers);
+                                stream.Write(headerBytes, 0, headerBytes.Length);
+
+                                // Stream the file contents to the client
+                                fileStream.CopyTo(stream);
+                            }
+                        }
+                        else
+                        {
+                            // If the file doesn't exist, send a 404 Not Found response
+                            string notFoundResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
+                            byte[] responseBuffer = Encoding.ASCII.GetBytes(notFoundResponse);
+                            stream.Write(responseBuffer, 0, responseBuffer.Length);
                         }
                     }
                     else
                     {
-                        // If the file doesn't exist, send a 404 Not Found response
-                        string notFoundResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
-                        byte[] responseBuffer = Encoding.ASCII.GetBytes(notFoundResponse);
-                        await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
+                        // Handle other types of requests (add your logic here)
                     }
-                }
-                else
-                {
-                    // Handle other types of requests (add your logic here)
                 }
             }
         }
