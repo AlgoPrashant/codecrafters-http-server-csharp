@@ -18,10 +18,30 @@ class Program
 
             NetworkStream stream = client.GetStream();
 
-            string response = "HTTP/1.1 200 OK\r\n\r\n";
-            byte[] buffer = Encoding.ASCII.GetBytes(response);
+            // Read the request
+            byte[] buffer = new byte[1024];
+            int bytesRead = stream.Read(buffer, 0, buffer.Length);
+            string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
 
-            stream.Write(buffer, 0, buffer.Length);
+            // Extract the URL path from the request
+            string[] lines = request.Split("\r\n");
+            string[] requestLine = lines[0].Split(' ');
+            string path = requestLine[1];
+
+            // Determine the response based on the path
+            string response;
+            if (path == "/")
+            {
+                response = "HTTP/1.1 200 OK\r\n\r\n";
+            }
+            else
+            {
+                response = "HTTP/1.1 404 Not Found\r\n\r\n";
+            }
+
+            // Send the response
+            byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+            stream.Write(responseBuffer, 0, responseBuffer.Length);
 
             stream.Close();
             client.Close();
