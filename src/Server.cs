@@ -50,7 +50,7 @@ class Program
             Console.WriteLine("Client connected.");
 
             // Handle each client connection in a separate task
-            _ = Task.Run(() => HandleClientAsync(client, directory));
+            Task.Run(() => HandleClientAsync(client, directory));
         }
     }
 
