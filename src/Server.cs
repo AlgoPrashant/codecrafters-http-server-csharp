@@ -1,11 +1,31 @@
+using System;
 using System.Net;
 using System.Net.Sockets;
-// You can use print statements as follows for debugging, they'll be visible when running tests.
-Console.WriteLine("Logs from your program will appear here!");
-// Uncomment this block to pass the first stage
-// TcpListener server = new TcpListener(IPAddress.Any, 4221);
-// server.Start();
-// server.AcceptSocket(); // wait for client
-TcpListener server = new TcpListener(IPAddress.Any, 4221);
-server.Start();
-server.AcceptSocket(); // wait for client
+using System.Text;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        TcpListener server = new TcpListener(IPAddress.Any, 4221);
+        server.Start();
+        Console.WriteLine("Server started. Waiting for connections...");
+
+        while (true)
+        {
+            TcpClient client = server.AcceptTcpClient();
+            Console.WriteLine("Client connected.");
+
+            NetworkStream stream = client.GetStream();
+
+            string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, World!";
+            byte[] buffer = Encoding.UTF8.GetBytes(response);
+
+            stream.Write(buffer, 0, buffer.Length);
+
+            stream.Close();
+            client.Close();
+            Console.WriteLine("Response sent. Client disconnected.");
+        }
+    }
+}
