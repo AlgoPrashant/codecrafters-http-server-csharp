@@ -28,7 +28,11 @@ class Program
 
             // Prepare the response
             string response;
-            if (path == "/")
+            if (path == "/user-agent" && request.Contains("pear/raspberry"))
+            {
+                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 14\r\n\r\npear/raspberry";
+            }
+            else if (path == "/")
             {
                 response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK";
             }
