@@ -24,20 +24,46 @@ class Program
             int bytesRead = stream.Read(buffer, 0, buffer.Length);
             string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
 
-            // Extract the User-Agent header value from the request
-            string userAgent = ExtractUserAgent(request);
+            // Extract the path from the request
+            string path = ExtractPath(request);
 
-            // Prepare the response
-            string response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {userAgent.Length}\r\n\r\n{userAgent}";
+            // Check if it's an echo request
+            if (path.StartsWith("/echo/"))
+            {
+                // Extract the string to echo
+                string echoString = path.Substring("/echo/".Length);
 
-            // Send the response
-            byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
-            stream.Write(responseBuffer, 0, responseBuffer.Length);
+                // Prepare the response
+                string response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {echoString.Length}\r\n\r\n{echoString}";
+
+                // Send the response
+                byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+                stream.Write(responseBuffer, 0, responseBuffer.Length);
+            }
+            else if (path == "/user-agent")
+            {
+                // Extract the User-Agent header value from the request
+                string userAgent = ExtractUserAgent(request);
+
+                // Prepare the response
+                string response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {userAgent.Length}\r\n\r\n{userAgent}";
+
+                // Send the response
+                byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+                stream.Write(responseBuffer, 0, responseBuffer.Length);
+            }
 
             stream.Close();
             client.Close();
             Console.WriteLine("Response sent. Client disconnected.");
         }
+    }
+
+    static string ExtractPath(string request)
+    {
+        string[] lines = request.Split("\r\n");
+        string[] parts = lines[0].Split(" ");
+        return parts[1];
     }
 
     static string ExtractUserAgent(string request)
