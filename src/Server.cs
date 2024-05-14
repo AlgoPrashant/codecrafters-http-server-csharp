@@ -63,7 +63,7 @@ class Program
     {
         string[] lines = request.Split("\r\n");
         string[] parts = lines[0].Split(" ");
-        return parts[1];
+        return parts.Length > 1 ? parts[1] : "";
     }
 
     static string ExtractUserAgent(string request)
