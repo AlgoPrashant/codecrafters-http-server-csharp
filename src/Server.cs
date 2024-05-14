@@ -1,112 +1,103 @@
-using System;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+using System.IO;
 
-class Program
-{
-    static async Task Main(string[] args)
-    {
-        string directory = "";
+byte[] generateResponse(string status, string contentType, string responseBody) {
+    // Status Line
+    string response = $"HTTP/1.1 {status}\r\n";
 
-        if (args.Length == 2 && args[0] == "--directory")
-        {
-            directory = args[1];
-        }
-        else if (args.Length > 0)
-        {
-            Console.WriteLine("Usage: your_server.exe --directory <directory>");
-            return;
-        }
-        else
-        {
-            directory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-                Console.WriteLine($"Created default directory: {directory}");
-            }
-            else
-            {
-                Console.WriteLine($"Using default directory: {directory}");
-            }
-        }
+    // Headers
+    response += $"Content-Type: {contentType}\r\n";
+    response += $"Content-Length: {responseBody.Length}\r\n";
+    response += "\r\n";
 
-        TcpListener server = new TcpListener(IPAddress.Any, 4221);
-        server.Start();
-        Console.WriteLine("Server started. Waiting for connections...");
+    // Response Body
+    response += responseBody;
 
-        List<Task> clientTasks = new List<Task>();
-
-        while (true)
-        {
-            TcpClient client = await server.AcceptTcpClientAsync();
-            Console.WriteLine("Client connected.");
-
-            clientTasks.Add(Task.Run(() => HandleClientAsync(client, directory)));
-
-            clientTasks.RemoveAll(task => task.IsCompleted);
-
-            if (clientTasks.Count > 10) // Example limit for concurrency
-            {
-                await Task.WhenAny(clientTasks); 
-            }
-        }
-    }
-
-    static async Task HandleClientAsync(TcpClient client, string directory)
-    {
-        try
-        {
-            using (NetworkStream stream = client.GetStream())
-            {
-                byte[] buffer = new byte[4096];
-                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-
-                string path = ExtractPath(request);
-
-                if (path.StartsWith("/files/"))
-                {
-                    string filePath = Path.Combine(directory, path.Substring("/files/".Length));
-
-                    if (File.Exists(filePath))
-                    {
-                        using (FileStream fileStream = File.OpenRead(filePath))
-                        {
-                            string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileStream.Length}\r\n\r\n";
-                            byte[] headerBytes = Encoding.ASCII.GetBytes(headers);
-                            await stream.WriteAsync(headerBytes, 0, headerBytes.Length);
-                            await fileStream.CopyToAsync(stream);
-                        }
-                    }
-                    else
-                    {
-                        string notFoundResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
-                        byte[] responseBuffer = Encoding.ASCII.GetBytes(notFoundResponse);
-                        await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
-                    }
-                }
-                else
-                {
-                    // Handle other types of requests (add your logic here)
-                }
-            }
-        }
-        finally
-        {
-            client.Close();
-            Console.WriteLine("Client disconnected.");
-        }
-    }
-
-    static string ExtractPath(string request)
-    {
-        string[] lines = request.Split("\r\n");
-        string[] parts = lines[0].Split(" ");
-        return parts.Length > 1 ? parts[1] : "";
-    }
+    return Encoding.UTF8.GetBytes(response);
 }
+
+string readFile(string filepath) {
+    // Handling exceptions "higher" up
+    string fileContents = "";
+
+    // Read file using stream
+    StreamReader fp = new StreamReader(filepath);
+    var line = fp.ReadLine();
+
+    while (line != null) {
+        fileContents += line;
+        line = fp.ReadLine();
+    }
+    fp.Close();
+
+    return fileContents;
+}
+
+
+// You can use print statements as follows for debugging, they'll be visible when running tests.
+Console.WriteLine("Logs from your program will appear here!");
+
+// Create TcpListener
+TcpListener server = new TcpListener(IPAddress.Any, 4221);
+server.Start();
+
+while (true) {
+    // Create new socket
+    Socket client =  server.AcceptSocket();
+    Console.WriteLine("Connection Established");
+
+    // Create response buffer and get resonse
+    byte[] requestText = new byte[100];
+    client.Receive(requestText);
+
+    // Parse request path
+    string parsed = System.Text.Encoding.UTF8.GetString(requestText);
+    string[] parsedLines = parsed.Split("\r\n");
+
+    // Capturing specific parts of the request that will always be there
+    string method = parsedLines[0].Split(" ")[0]; // GET, POST
+    string path = parsedLines[0].Split(" ")[1]; // /echo/apple
+
+    // Logic
+    if (path.Equals("/")) {
+        client.Send(generateResponse("200 OK", "text/plain", "Nothing"));
+    }
+
+    // Return if file specified after '/files/' exists, return contents in resonse body
+    else if (path.StartsWith("/files/")) {
+        // Instructions mention the program WILL be run like this ./program --directory dir
+        string directoryName = args[1];
+        string filename = path.Split("/")[2];
+
+        try {
+            string fileContents = readFile(directoryName + filename);
+            client.Send(generateResponse("200 OK", "application/octet-stream", fileContents));
+        }
+        catch (Exception e){
+            client.Send(generateResponse("404 Not Found", "text/plain", "File Not Found"));
+        }
+    }
+
+    // Return User-Agent in resonse body
+    else if (path.Equals("/user-agent")) {
+        string userAgent = parsedLines[2].Split(" ")[1];
+        client.Send(generateResponse("200 OK", "text/plain", userAgent));
+    }
+
+    // Return text after '/echo/' in resonse body
+    else if (path.StartsWith("/echo")) {
+        string word = path.Split("/")[2];
+        client.Send(generateResponse("200 OK", "text/plain", word));
+    }
+
+    // You're a loser
+    else {
+        client.Send(generateResponse("404 Not Found", "text/plain", "Nothing Dipshit"));
+    }
+
+    client.Close();
+}
+
+server.Stop();
