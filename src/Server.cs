@@ -30,57 +30,48 @@ class Program
             TcpClient client = await server.AcceptTcpClientAsync();
             Console.WriteLine("Client connected.");
 
-            _ = Task.Run(() => HandleClientAsync(client, directory));
+            _ = Task.Run(() => HandleClientAsync(client, directory)); // Start handling in background
         }
     }
-
 
     static async Task HandleClientAsync(TcpClient client, string directory)
     {
         try
         {
-            NetworkStream stream = client.GetStream();
-
-            // Read the request asynchronously
-            byte[] buffer = new byte[1024];
-            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-            string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
-
-            // Extract the path from the request
-            string path = ExtractPath(request);
-
-            // Check if the request is for a file
-            if (path.StartsWith("/files/"))
+            using (NetworkStream stream = client.GetStream())
             {
-                string filePath = Path.Combine(directory, path.Substring("/files/".Length));
-                if (File.Exists(filePath))
+                byte[] buffer = new byte[4096];
+                int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+
+                string path = ExtractPath(request);
+
+                if (path.StartsWith("/files/"))
                 {
-                    // File exists, read its contents
-                    byte[] fileBytes = await File.ReadAllBytesAsync(filePath);
-                    string contentType = "application/octet-stream";
+                    string filePath = Path.Combine(directory, path.Substring("/files/".Length));
 
-                    // Prepare the response
-                    string response = $"HTTP/1.1 200 OK\r\nContent-Type: {contentType}\r\nContent-Length: {fileBytes.Length}\r\n\r\n";
-                    byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+                    if (File.Exists(filePath))
+                    {
+                        using (FileStream fileStream = File.OpenRead(filePath))
+                        {
+                            string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileStream.Length}\r\n\r\n";
+                            byte[] headerBytes = Encoding.ASCII.GetBytes(headers);
+                            await stream.WriteAsync(headerBytes, 0, headerBytes.Length);
 
-                    // Send the response headers
-                    await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
-
-                    // Send the file contents
-                    await stream.WriteAsync(fileBytes, 0, fileBytes.Length);
+                            await fileStream.CopyToAsync(stream);
+                        }
+                    }
+                    else
+                    {
+                        string notFoundResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
+                        byte[] responseBuffer = Encoding.ASCII.GetBytes(notFoundResponse);
+                        await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
+                    }
                 }
                 else
                 {
-                    // File does not exist, return 404
-                    string notFoundResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
-                    byte[] responseBuffer = Encoding.ASCII.GetBytes(notFoundResponse);
-                    await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
+                    // Handle other types of requests (add your logic here)
                 }
-            }
-            else
-            {
-                // Handle other types of requests (e.g., /user-agent, /echo)
-                // Add your existing request handling logic here
             }
         }
         finally
