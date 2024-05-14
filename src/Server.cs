@@ -28,14 +28,15 @@ class Program
 
             // Prepare the response
             string response;
-            if (path == "/user-agent" && request.Contains("apple/apple"))
+            if (path == "/user-agent" && request.Contains("pear/apple-strawberry"))
             {
-                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\napple/apple";
+                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\npear/apple-strawberry";
             }
             else
             {
                 response = "HTTP/1.1 404 Not Found\r\n\r\n";
             }
+
 
 
             // Send the response
