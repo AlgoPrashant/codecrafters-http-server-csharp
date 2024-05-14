@@ -28,16 +28,23 @@ class Program
 
             // Prepare the response
             string response;
-            if (path == "/user-agent" && request.Contains("pear/apple-strawberry"))
+            if (path == "/user-agent")
             {
-                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\npear/apple-strawberry";
+                // Extract User-Agent header
+                string userAgent = ExtractUserAgent(request);
+                if (!string.IsNullOrEmpty(userAgent))
+                {
+                    response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {userAgent.Length}\r\n\r\n{userAgent}";
+                }
+                else
+                {
+                    response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+                }
             }
             else
             {
                 response = "HTTP/1.1 404 Not Found\r\n\r\n";
             }
-
-
 
             // Send the response
             byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
@@ -54,5 +61,18 @@ class Program
         string[] lines = request.Split("\r\n");
         string[] parts = lines[0].Split(" ");
         return parts.Length > 1 ? parts[1] : "";
+    }
+
+    static string ExtractUserAgent(string request)
+    {
+        string[] lines = request.Split("\r\n");
+        foreach (string line in lines)
+        {
+            if (line.StartsWith("User-Agent:"))
+            {
+                return line.Substring("User-Agent:".Length).Trim();
+            }
+        }
+        return null;
     }
 }
