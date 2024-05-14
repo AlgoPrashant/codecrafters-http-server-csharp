@@ -41,11 +41,17 @@ class Program
                 byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
                 stream.Write(responseBuffer, 0, responseBuffer.Length);
             }
+            else if (path == "/")
+            {
+                // Respond with 200 for root endpoint
+                string response = "HTTP/1.1 200 OK\r\n\r\n";
+                byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+                stream.Write(responseBuffer, 0, responseBuffer.Length);
+            }
             else
             {
-                // Prepare the response for other paths
+                // Respond with 404 for other paths
                 string response = "HTTP/1.1 404 Not Found\r\n\r\n";
-                // Send the response
                 byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
                 stream.Write(responseBuffer, 0, responseBuffer.Length);
             }
