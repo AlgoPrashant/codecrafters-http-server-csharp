@@ -18,8 +18,8 @@ class Program
 
             NetworkStream stream = client.GetStream();
 
-            string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, World!";
-            byte[] buffer = Encoding.UTF8.GetBytes(response);
+            string response = "HTTP/1.1 200 OK\r\n\r\n";
+            byte[] buffer = Encoding.ASCII.GetBytes(response);
 
             stream.Write(buffer, 0, buffer.Length);
 
