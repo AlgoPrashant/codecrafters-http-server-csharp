@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.RegularExpressions;
 
 class Program
 {
@@ -28,16 +29,16 @@ class Program
             string[] requestLine = lines[0].Split(' ');
             string path = requestLine[1];
 
-            // Determine the response based on the path
-            string response;
-            if (path == "/")
+            // Extract the string from the URL path
+            string str = "";
+            Match match = Regex.Match(path, @"\/echo\/(.+)");
+            if (match.Success)
             {
-                response = "HTTP/1.1 200 OK\r\n\r\n";
+                str = match.Groups[1].Value;
             }
-            else
-            {
-                response = "HTTP/1.1 404 Not Found\r\n\r\n";
-            }
+
+            // Prepare the response
+            string response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {str.Length}\r\n\r\n{str}";
 
             // Send the response
             byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
