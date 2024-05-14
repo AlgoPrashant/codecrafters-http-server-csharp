@@ -13,14 +13,33 @@ class Program
 
         if (args.Length == 2 && args[0] == "--directory")
         {
+            // Use the directory specified by the --directory argument
             directory = args[1];
         }
-        else
+        else if (args.Length > 0)
         {
+            // Show usage instructions if invalid arguments are provided
             Console.WriteLine("Usage: your_server.exe --directory <directory>");
             return;
         }
+        else
+        {
+            // Use the default "wwwroot" directory if no argument is provided
+            directory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"); 
 
+            // Create the directory if it doesn't exist
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+                Console.WriteLine($"Created default directory: {directory}");
+            }
+            else
+            {
+                Console.WriteLine($"Using default directory: {directory}");
+            }
+        }
+
+        // Start the TCP listener on port 4221
         TcpListener server = new TcpListener(IPAddress.Any, 4221);
         server.Start();
         Console.WriteLine("Server started. Waiting for connections...");
@@ -30,7 +49,8 @@ class Program
             TcpClient client = await server.AcceptTcpClientAsync();
             Console.WriteLine("Client connected.");
 
-            _ = Task.Run(() => HandleClientAsync(client, directory)); // Start handling in background
+            // Handle each client connection in a separate task
+            _ = Task.Run(() => HandleClientAsync(client, directory)); 
         }
     }
 
@@ -40,6 +60,7 @@ class Program
         {
             using (NetworkStream stream = client.GetStream())
             {
+                // Read the HTTP request from the client
                 byte[] buffer = new byte[4096];
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
                 string request = Encoding.ASCII.GetString(buffer, 0, bytesRead);
@@ -48,21 +69,26 @@ class Program
 
                 if (path.StartsWith("/files/"))
                 {
+                    // Construct the full file path based on the request
                     string filePath = Path.Combine(directory, path.Substring("/files/".Length));
 
                     if (File.Exists(filePath))
                     {
+                        // If the file exists, open it and send the contents
                         using (FileStream fileStream = File.OpenRead(filePath))
                         {
+                            // Prepare the HTTP response headers
                             string headers = $"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {fileStream.Length}\r\n\r\n";
                             byte[] headerBytes = Encoding.ASCII.GetBytes(headers);
                             await stream.WriteAsync(headerBytes, 0, headerBytes.Length);
 
+                            // Stream the file contents to the client
                             await fileStream.CopyToAsync(stream);
                         }
                     }
                     else
                     {
+                        // If the file doesn't exist, send a 404 Not Found response
                         string notFoundResponse = "HTTP/1.1 404 Not Found\r\n\r\n";
                         byte[] responseBuffer = Encoding.ASCII.GetBytes(notFoundResponse);
                         await stream.WriteAsync(responseBuffer, 0, responseBuffer.Length);
@@ -76,6 +102,7 @@ class Program
         }
         finally
         {
+            // Close the client connection after handling the request
             client.Close();
             Console.WriteLine("Client disconnected.");
         }
@@ -83,6 +110,7 @@ class Program
 
     static string ExtractPath(string request)
     {
+        // Helper function to extract the requested path from the HTTP request
         string[] lines = request.Split("\r\n");
         string[] parts = lines[0].Split(" ");
         return parts.Length > 1 ? parts[1] : "";
