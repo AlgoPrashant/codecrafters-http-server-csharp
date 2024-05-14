@@ -46,6 +46,10 @@ class Program
                 string echoMessage = path.Substring("/echo/".Length);
                 response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {echoMessage.Length}\r\n\r\n{echoMessage}";
             }
+            else if (path == "/")
+            {
+                response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 0\r\n\r\n";
+            }
             else
             {
                 response = "HTTP/1.1 404 Not Found\r\n\r\n";
