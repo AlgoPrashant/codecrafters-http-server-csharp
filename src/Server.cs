@@ -35,14 +35,20 @@ class Program
             if (match.Success)
             {
                 str = match.Groups[1].Value;
+                // Prepare the response for /echo/{str}
+                string response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {str.Length}\r\n\r\n{str}";
+                // Send the response
+                byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+                stream.Write(responseBuffer, 0, responseBuffer.Length);
             }
-
-            // Prepare the response
-            string response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {str.Length}\r\n\r\n{str}";
-
-            // Send the response
-            byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
-            stream.Write(responseBuffer, 0, responseBuffer.Length);
+            else
+            {
+                // Prepare the response for other paths
+                string response = "HTTP/1.1 404 Not Found\r\n\r\n";
+                // Send the response
+                byte[] responseBuffer = Encoding.ASCII.GetBytes(response);
+                stream.Write(responseBuffer, 0, responseBuffer.Length);
+            }
 
             stream.Close();
             client.Close();
