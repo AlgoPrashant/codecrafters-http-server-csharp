@@ -41,6 +41,11 @@ class Program
                     response = "HTTP/1.1 400 Bad Request\r\n\r\n";
                 }
             }
+            else if (path.StartsWith("/echo/"))
+            {
+                string echoMessage = path.Substring("/echo/".Length);
+                response = $"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {echoMessage.Length}\r\n\r\n{echoMessage}";
+            }
             else
             {
                 response = "HTTP/1.1 404 Not Found\r\n\r\n";
