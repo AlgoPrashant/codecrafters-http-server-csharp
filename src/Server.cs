@@ -9,9 +9,11 @@ internal class Program
 {
     private static void Main(string[] args)
     {
+        // You can use print statements as follows for debugging, they'll be visible
         // when running tests.
         Console.WriteLine("Logs from your program will appear here!");
 
+        // Uncomment this block to pass the first stage
         // Start TCP server
         TcpListener server = new TcpListener(IPAddress.Any, 4221);
         server.Start();
@@ -121,7 +123,6 @@ internal class Program
                     if (gzipRequested)
                     {
                         // Compress the response body using gzip encoding
-                        byte[] gzipData;
                         using (MemoryStream ms = new MemoryStream())
                         {
                             using (GZipStream gzip = new GZipStream(ms, CompressionMode.Compress))
@@ -129,15 +130,15 @@ internal class Program
                                 byte[] bytes = Encoding.UTF8.GetBytes(echoData);
                                 gzip.Write(bytes, 0, bytes.Length);
                             }
-                            gzipData = ms.ToArray();
+                            // Get the gzip compressed data
+                            byte[] gzipData = ms.ToArray();
+
+                            // Add headers for gzip encoding and content length
+                            responseBuilder.Append("Content-Encoding: gzip\r\n");
+                            responseBuilder.Append($"Content-Length: {gzipData.Length}\r\n\r\n");
+                            // Append the gzip data to the response
+                            responseBuilder.Append(Encoding.UTF8.GetString(gzipData));
                         }
-
-                        // Convert gzip compressed data to hex representation
-                        string hexEncodedGzipData = BitConverter.ToString(gzipData).Replace("-", "").ToLower();
-
-                        // Add headers for gzip encoding and content length
-                        responseBuilder.Append("Content-Encoding: gzip\r\n");
-                        responseBuilder.Append($"Content-Length: {hexEncodedGzipData.Length / 2}\r\n\r\n{hexEncodedGzipData}");
                     }
                     else
                     {
