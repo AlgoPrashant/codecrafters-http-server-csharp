@@ -141,7 +141,7 @@ internal class Program
                             responseBuilder.Append($"Content-Length: {gzipDataLength}\r\n\r\n");
 
                             // Append the gzip-encoded data to the response
-                            responseBuilder.Append(Encoding.UTF8.GetString(gzipData));
+                            responseBuilder.Append(gzipData);
                         }
                     }
                     else
