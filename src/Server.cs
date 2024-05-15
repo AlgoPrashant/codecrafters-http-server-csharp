@@ -74,9 +74,9 @@ class Program
                 // Save the file contents to the specified directory
                 string directoryName = args[1];
                 string filePath = Path.Combine(directoryName, filename);
-                using (StreamWriter writer = new StreamWriter(filePath, false))
+                using (FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
                 {
-                    writer.Write(fileContents);
+                    fileStream.Write(requestBody, 0, requestBody.Length);
                 }
 
                 // Send a response with status code 201 (Created)
