@@ -65,19 +65,21 @@ class Program
                 // Extract filename from the request path
                 string filename = path.Split("/")[2];
 
-                // Read the contents of the request body
-                int contentLength = int.Parse(parsedLines[2].Split(" ")[1]);
-                byte[] requestBody = new byte[contentLength];
-                client.Receive(requestBody);
+                // Read the entire request body
+                MemoryStream requestBodyStream = new MemoryStream();
+                int bytesRead;
+                byte[] buffer = new byte[1024]; // Adjust buffer size as needed
+                while ((bytesRead = client.Receive(buffer)) > 0)
+                {
+                    requestBodyStream.Write(buffer, 0, bytesRead);
+                }
+                byte[] requestBody = requestBodyStream.ToArray();
                 string fileContents = Encoding.UTF8.GetString(requestBody);
 
                 // Save the file contents to the specified directory
                 string directoryName = args[1];
                 string filePath = Path.Combine(directoryName, filename);
-                using (FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                {
-                    fileStream.Write(requestBody, 0, requestBody.Length);
-                }
+                File.WriteAllText(filePath, fileContents);
 
                 // Send a response with status code 201 (Created)
                 client.Send(generateResponse("201 Created", "text/plain", "File created successfully"));
