@@ -133,25 +133,15 @@ internal class Program
                             // Get the gzip compressed data
                             byte[] gzipData = ms.ToArray();
 
+                            // Calculate the length of the gzip-encoded data
+                            int gzipDataLength = gzipData.Length;
+
                             // Add headers for gzip encoding and content length
                             responseBuilder.Append("Content-Encoding: gzip\r\n");
-                            responseBuilder.Append($"Content-Length: {gzipData.Length}\r\n\r\n");
+                            responseBuilder.Append($"Content-Length: {gzipDataLength}\r\n\r\n");
 
-                            // Decompress gzip-encoded data
-                            using (MemoryStream decompressedStream = new MemoryStream())
-                            {
-                                using (MemoryStream compressedStream = new MemoryStream(gzipData))
-                                {
-                                    using (GZipStream gzip = new GZipStream(compressedStream, CompressionMode.Decompress))
-                                    {
-                                        gzip.CopyTo(decompressedStream);
-                                    }
-                                }
-                                // Get the decompressed data
-                                byte[] decompressedData = decompressedStream.ToArray();
-                                // Append the decompressed data to the response
-                                responseBuilder.Append(Encoding.UTF8.GetString(decompressedData));
-                            }
+                            // Append the gzip-encoded data to the response
+                            responseBuilder.Append(Encoding.UTF8.GetString(gzipData));
                         }
                     }
                     else
