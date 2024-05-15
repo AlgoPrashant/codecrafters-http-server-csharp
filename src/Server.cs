@@ -102,7 +102,31 @@ internal class Program
                 // Handle echo action
                 case "echo":
                     string echoData = requestURL.Split("/")[2];
-                    status = RESP_200 + $"Content-Type: text/plain\r\nContent-Length: {echoData.Length}\r\n\r\n{echoData}";
+                    string contentEncoding = "";
+                    foreach (string rData in requestData)
+                    {
+                        if (rData.StartsWith("Accept-Encoding:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // Extract the value of the Accept-Encoding header
+                            contentEncoding = rData.Split(":")[1].Trim().ToLower();
+                            break;
+                        }
+                    }
+
+                    // Check if gzip compression is requested
+                    bool gzipRequested = contentEncoding.Contains("gzip");
+
+                    // Prepare the response with appropriate headers
+                    StringBuilder responseBuilder = new StringBuilder();
+                    responseBuilder.Append(RESP_200);
+                    if (gzipRequested)
+                    {
+                        responseBuilder.Append("Content-Encoding: gzip\r\n");
+                    }
+                    responseBuilder.Append("Content-Type: text/plain\r\n");
+                    responseBuilder.Append($"Content-Length: {echoData.Length}\r\n\r\n{echoData}");
+
+                    status = responseBuilder.ToString();
                     break;
 
                 // Handle unknown actions
