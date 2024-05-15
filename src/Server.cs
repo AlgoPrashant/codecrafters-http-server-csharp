@@ -60,24 +60,25 @@ class Program
             {
                 client.Send(generateResponse("200 OK", "text/plain", "Nothing"));
             }
-            else if (path.StartsWith("/files/"))
+            else if (method.Equals("POST") && path.StartsWith("/files/"))
             {
                 // Extract filename from the request path
                 string filename = path.Split("/")[2];
-                
-                // Read the contents of the request body
-                // int contentLength = int.Parse(parsedLines[1].Split(" ")[1]);
-                int contentLength = int.Parse(parsedLines[2].Split(" ")[1]);
 
+                // Read the contents of the request body
+                int contentLength = int.Parse(parsedLines[2].Split(" ")[1]);
                 byte[] requestBody = new byte[contentLength];
                 client.Receive(requestBody);
                 string fileContents = Encoding.UTF8.GetString(requestBody);
-                
+
                 // Save the file contents to the specified directory
                 string directoryName = args[1];
                 string filePath = Path.Combine(directoryName, filename);
-                File.WriteAllText(filePath, fileContents);
-                
+                using (StreamWriter writer = new StreamWriter(filePath, false))
+                {
+                    writer.Write(fileContents);
+                }
+
                 // Send a response with status code 201 (Created)
                 client.Send(generateResponse("201 Created", "text/plain", "File created successfully"));
             }
