@@ -136,8 +136,22 @@ internal class Program
                             // Add headers for gzip encoding and content length
                             responseBuilder.Append("Content-Encoding: gzip\r\n");
                             responseBuilder.Append($"Content-Length: {gzipData.Length}\r\n\r\n");
-                            // Append the gzip data to the response without converting it to a string
-                            responseBuilder.Append(Encoding.UTF8.GetString(gzipData, 0, gzipData.Length));
+
+                            // Decompress gzip-encoded data
+                            using (MemoryStream decompressedStream = new MemoryStream())
+                            {
+                                using (MemoryStream compressedStream = new MemoryStream(gzipData))
+                                {
+                                    using (GZipStream gzip = new GZipStream(compressedStream, CompressionMode.Decompress))
+                                    {
+                                        gzip.CopyTo(decompressedStream);
+                                    }
+                                }
+                                // Get the decompressed data
+                                byte[] decompressedData = decompressedStream.ToArray();
+                                // Append the decompressed data to the response
+                                responseBuilder.Append(Encoding.UTF8.GetString(decompressedData));
+                            }
                         }
                     }
                     else
