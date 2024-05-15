@@ -64,7 +64,7 @@ class Program
             {
                 // Extract filename from the request path
                 string filename = path.Split("/")[2];
-
+                
                 // Read the entire request body
                 MemoryStream requestBodyStream = new MemoryStream();
                 int bytesRead;
@@ -75,14 +75,18 @@ class Program
                 }
                 byte[] requestBody = requestBodyStream.ToArray();
                 string fileContents = Encoding.UTF8.GetString(requestBody);
-
+                
                 // Save the file contents to the specified directory
                 string directoryName = args[1];
                 string filePath = Path.Combine(directoryName, filename);
                 File.WriteAllText(filePath, fileContents);
-
+                
                 // Send a response with status code 201 (Created)
-                client.Send(generateResponse("201 Created", "text/plain", "File created successfully"));
+                byte[] responseBytes = generateResponse("201 Created", "text/plain", "File created successfully");
+                client.Send(responseBytes);
+
+                // Introduce a small delay to allow the client to process the response
+                System.Threading.Thread.Sleep(100); // Adjust delay time as needed
             }
             else if (path.Equals("/user-agent"))
             {
