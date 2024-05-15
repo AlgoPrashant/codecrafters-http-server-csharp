@@ -13,20 +13,21 @@ internal class Program
         Console.WriteLine("Logs from your program will appear here!");
 
         // Uncomment this block to pass the first stage
+        // Start TCP server
         TcpListener server = new TcpListener(IPAddress.Any, 4221);
         server.Start();
         byte[] data = new byte[256];
         string RESP_200 = "HTTP/1.1 200 OK\r\n";
         string RESP_201 = "HTTP/1.1 201 Created\r\n\r\n";
         string RESP_404 = "HTTP/1.1 404 Not Found\r\n\r\n";
-        
+
         while (true)
         {
             Console.Write("Waiting for a connection... ");
             using TcpClient client = server.AcceptTcpClient();
             NetworkStream stream = client.GetStream();
             Console.WriteLine("Connected!");
-            
+
             // Read request data
             int bytesRead = stream.Read(data, 0, data.Length);
             string request = Encoding.ASCII.GetString(data, 0, bytesRead);
@@ -37,18 +38,22 @@ internal class Program
             string action = requestURL.Split("/")[1];
             string status = "";
 
+            // Handle different actions based on request
             switch (action)
             {
+                // Handle root action
                 case "":
                     status = RESP_200 + "\r\n";
                     break;
-                
+
+                // Handle requests for files
                 case "files":
                     string directoryName = args[1];
                     string fileName = Path.Combine(directoryName, requestURL.Split("/")[2]);
-                    
+
                     if (requestType == "GET")
                     {
+                        // Handle GET requests for files
                         if (!File.Exists(fileName))
                         {
                             status = RESP_404;
@@ -62,6 +67,7 @@ internal class Program
                     }
                     else if (requestType == "POST")
                     {
+                        // Handle POST requests for files
                         string content = requestData[requestData.Length - 1];
                         int length = 0;
 
@@ -79,6 +85,7 @@ internal class Program
                     }
                     break;
 
+                // Handle requests for user agent
                 case "user-agent":
                     string userAgent = "";
                     foreach (string rData in requestData)
@@ -91,12 +98,14 @@ internal class Program
                     }
                     status = RESP_200 + $"Content-Type: text/plain\r\nContent-Length: {userAgent.Length}\r\n\r\n{userAgent}";
                     break;
-                
+
+                // Handle echo action
                 case "echo":
                     string echoData = requestURL.Split("/")[2];
                     status = RESP_200 + $"Content-Type: text/plain\r\nContent-Length: {echoData.Length}\r\n\r\n{echoData}";
                     break;
-                
+
+                // Handle unknown actions
                 default:
                     status = RESP_404;
                     break;
