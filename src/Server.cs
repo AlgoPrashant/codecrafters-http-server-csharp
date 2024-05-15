@@ -66,7 +66,9 @@ class Program
                 string filename = path.Split("/")[2];
                 
                 // Read the contents of the request body
-                int contentLength = int.Parse(parsedLines[1].Split(" ")[1]);
+                // int contentLength = int.Parse(parsedLines[1].Split(" ")[1]);
+                int contentLength = int.Parse(parsedLines[2].Split(" ")[1]);
+
                 byte[] requestBody = new byte[contentLength];
                 client.Receive(requestBody);
                 string fileContents = Encoding.UTF8.GetString(requestBody);
