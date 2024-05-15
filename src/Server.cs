@@ -3,112 +3,108 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Linq;
 
-class Program
+internal class Program
 {
-    const int PORT = 4221;
-    const int BUFFER_SIZE = 1024;
-
-    static byte[] GenerateResponse(string status, string contentType, string responseBody)
+    private static void Main(string[] args)
     {
-        string response = $"HTTP/1.1 {status}\r\n";
-        response += $"Content-Type: {contentType}\r\n";
-        response += $"Content-Length: {responseBody.Length}\r\n";
-        response += "\r\n";
-        response += responseBody;
+        // You can use print statements as follows for debugging, they'll be visible
+        // when running tests.
+        Console.WriteLine("Logs from your program will appear here!");
 
-        return Encoding.UTF8.GetBytes(response);
-    }
-
-    static void Main(string[] args)
-    {
-        if (args.Length < 2 || args[0] != "--directory")
+        // Uncomment this block to pass the first stage
+        TcpListener server = new TcpListener(IPAddress.Any, 4221);
+        server.Start();
+        byte[] data = new byte[256];
+        string RESP_200 = "HTTP/1.1 200 OK\r\n";
+        string RESP_201 = "HTTP/1.1 201 Created\r\n\r\n";
+        string RESP_404 = "HTTP/1.1 404 Not Found\r\n\r\n";
+        
+        while (true)
         {
-            Console.WriteLine("Usage: ./your_server.sh --directory <directory>");
-            return;
-        }
+            Console.Write("Waiting for a connection... ");
+            using TcpClient client = server.AcceptTcpClient();
+            NetworkStream stream = client.GetStream();
+            Console.WriteLine("Connected!");
+            
+            // Read request data
+            int bytesRead = stream.Read(data, 0, data.Length);
+            string request = Encoding.ASCII.GetString(data, 0, bytesRead);
+            string[] requestData = request.Split("\r\n");
+            string requestURL = requestData[0].Split(" ")[1];
+            string[] requestArr = requestData[0].Split(" ");
+            string requestType = requestArr[0];
+            string action = requestURL.Split("/")[1];
+            string status = "";
 
-        using (TcpListener server = new TcpListener(IPAddress.Any, PORT))
-        {
-            server.Start();
-            Console.WriteLine($"Server listening on port {PORT}...");
-
-            while (true)
+            switch (action)
             {
-                using (Socket client = server.AcceptSocket())
-                {
-                    Console.WriteLine("Connection established");
+                case "":
+                    status = RESP_200 + "\r\n";
+                    break;
+                
+                case "files":
+                    string directoryName = args[1];
+                    string fileName = Path.Combine(directoryName, requestURL.Split("/")[2]);
+                    
+                    if (requestType == "GET")
+                    {
+                        if (!File.Exists(fileName))
+                        {
+                            status = RESP_404;
+                        }
+                        else
+                        {
+                            string fileContent = File.ReadAllText(fileName);
+                            status = RESP_200 + "Content-Type: application/octet-stream\r\n";
+                            status += $"Content-Length: {fileContent.Length}\r\n\r\n{fileContent}";
+                        }
+                    }
+                    else if (requestType == "POST")
+                    {
+                        string content = requestData[requestData.Length - 1];
+                        int length = 0;
 
-                    byte[] requestBuffer = new byte[BUFFER_SIZE];
-                    int bytesRead = client.Receive(requestBuffer);
-                    string request = Encoding.UTF8.GetString(requestBuffer, 0, bytesRead);
+                        foreach (string rData in requestData)
+                        {
+                            if (rData.Contains("Content-Length"))
+                            {
+                                length = int.Parse(rData.Split(" ")[1]);
+                                break;
+                            }
+                        }
 
-                    string[] lines = request.Split(Environment.NewLine);
-                    string[] firstLine = lines[0].Split(" ");
-                    string method = firstLine[0];
-                    string path = firstLine[1];
+                        File.WriteAllText(fileName, content.Substring(0, length));
+                        status = RESP_201;
+                    }
+                    break;
 
-                    if (path.Equals("/"))
+                case "user-agent":
+                    string userAgent = "";
+                    foreach (string rData in requestData)
                     {
-                        client.Send(GenerateResponse("200 OK", "text/plain", "Nothing"));
+                        if (rData.Contains("User-Agent"))
+                        {
+                            userAgent = rData.Split(" ")[1];
+                            break;
+                        }
                     }
-                    else if (method.Equals("POST") && path.StartsWith("/files/"))
-                    {
-                        HandleFileUpload(client, path, args[1], requestBuffer, bytesRead);
-                    }
-                    else if (path.Equals("/user-agent"))
-                    {
-                        string userAgent = lines.FirstOrDefault(l => l.StartsWith("User-Agent:"));
-                        userAgent = userAgent?.Substring("User-Agent: ".Length) ?? "Unknown";
-                        client.Send(GenerateResponse("200 OK", "text/plain", userAgent));
-                    }
-                    else if (path.StartsWith("/echo/"))
-                    {
-                        string word = path.Substring(6);
-                        client.Send(GenerateResponse("200 OK", "text/plain", word));
-                    }
-                    else
-                    {
-                        client.Send(GenerateResponse("404 Not Found", "text/plain", "Nothing Dipshit"));
-                    }
-                } 
+                    status = RESP_200 + $"Content-Type: text/plain\r\nContent-Length: {userAgent.Length}\r\n\r\n{userAgent}";
+                    break;
+                
+                case "echo":
+                    string echoData = requestURL.Split("/")[2];
+                    status = RESP_200 + $"Content-Type: text/plain\r\nContent-Length: {echoData.Length}\r\n\r\n{echoData}";
+                    break;
+                
+                default:
+                    status = RESP_404;
+                    break;
             }
-        } 
-    }
 
-    static void HandleFileUpload(Socket client, string path, string directory, byte[] requestBuffer, int bytesRead)
-    {
-        string filename = path.Substring(7);
-        string sanitizedFilename = Path.GetInvalidFileNameChars().Aggregate(filename, (current, c) => current.Replace(c.ToString(), string.Empty));
-
-        try
-        {
-            string fullPath = Path.Combine(directory, sanitizedFilename);
-            if (!fullPath.StartsWith(directory))
-            {
-                throw new InvalidOperationException("Invalid file path.");
-            }
-
-            using (var fs = new FileStream(fullPath, FileMode.Create))
-            {
-                fs.Write(requestBuffer, bytesRead, requestBuffer.Length - bytesRead);
-                while ((bytesRead = client.Receive(requestBuffer)) > 0)
-                {
-                    fs.Write(requestBuffer, 0, bytesRead);
-                }
-            }
-
-            client.Send(GenerateResponse("201 Created", "text/plain", "File created successfully"));
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error saving file: {ex.Message}");
-            client.Send(GenerateResponse("500 Internal Server Error", "text/plain", "Error saving file"));
-        }
-        finally
-        {
-            client.Close();
+            // Send back a response
+            byte[] response = Encoding.ASCII.GetBytes(status);
+            stream.Write(response, 0, response.Length);
         }
     }
 }
